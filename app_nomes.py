@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import requests
+import json
 from pprint import pprint
 
 
@@ -64,6 +66,25 @@ def pegar_nome_por_decada(nome):
     return dict_decadas
 
 
+def mapa(df):
+    estados = json.load('brazil_geo.json')
+
+    fig = px.choropleth_map(df,
+                            geojson=estados,
+                            locations='name',
+                            color='Frequencia',
+                            color_continuous_scale='Viridis',
+                            map_style='carto-positron',
+                            zoom=3,
+                            center= {'lat':-12.619526, 'long':-50.662294},
+                            opacity=0.5,
+                            )
+    fig.show()
+
+    return fig
+
+
+
 def main():
 
     st.set_page_config(layout='wide')
@@ -98,6 +119,18 @@ def main():
 
     df = pd.DataFrame.from_dict(dict_decada, orient='index')
 
+    df_localidades = pd.DataFrame.from_dict(dict_estados, orient='index')
+    df_localidades = df_localidades.reset_index()
+    df_localidades = df_localidades.rename(columns={0:'Estado', 'index':'UF-id'})
+
+    df_frequencia = pd.DataFrame.from_dict(dict_frequencia, orient='index')
+    df_frequencia = df_frequencia.reset_index()
+    df_frequencia = df_frequencia.rename(columns={0:'Frequencia', 'index':'UF-id'})
+
+    df_freq_loc = df_localidades.merge(df_frequencia, left_on='UF-id', right_on='UF-id', how='left')
+
+
+
     col01, col02 = st.columns([0.5, 0.7])
 
     with col01:
@@ -108,7 +141,10 @@ def main():
         st.subheader(f'Evolução no tempo dos registros do {nome} por década')
         st.line_chart(df)
 
-    st.map()
+    # st.write(df_localidades)
+    # st.write(df_frequencia)
+    st.write(df_freq_loc)
+    mapa(df=df_freq_loc)
 
 
 if __name__=='__main__':
