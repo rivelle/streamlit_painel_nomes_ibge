@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import plotly.express as px
+import plotly.graph_objects as go
 import requests
 import json
 from pprint import pprint
@@ -84,7 +85,7 @@ def mapa(df):
                             center= {'lat':-14.619526, 'lon':-50.662294},
                             opacity=0.5,
                             )
-    fig.update_layout(height=650, margin={"r":0,"t":0,"l":0,"b":0})
+    fig.update_layout(height=800, margin={"r":0,"t":0,"l":0,"b":0})
     return st.plotly_chart(fig, use_container_width=True)
 
 
@@ -148,6 +149,8 @@ def main():
         df_frequencia = df_frequencia.rename(columns={0:'Frequencia', 'index':'UF-id'})
 
         df_freq_loc = df_localidades.merge(df_frequencia, left_on='UF-id', right_on='UF-id', how='left')
+        df_freq_loc_top10 = df_freq_loc.sort_values(by='Frequencia', ascending=False).head(10)
+        df_freq_loc.to_csv('teste_df_fre_loc.csv')
 
 
     col01, col02 = st.columns([0.5, 0.7])
@@ -156,28 +159,26 @@ def main():
         
         st.subheader(f'Frequência do nome {nome} por década')
         st.bar_chart(df, color="#DA3E3E")
-        # st.dataframe(df)
+
         st.subheader(f'Evolução no tempo dos registros do {nome} por década')
         st.line_chart(df, color="#DA3E3E")
 
+        st.subheader(f'Top 10 Frequência do {nome} por Estado')
+        fig_chart_bar = go.Figure()
+        fig_chart_bar.add_trace(go.Bar(
+            x = df_freq_loc_top10['Estado'],
+            y = df_freq_loc_top10['Frequencia'],
+            marker_color = "#DA3E3E"
+            ))
+        fig_chart_bar.update_layout()
+        st.plotly_chart(fig_chart_bar)
+
+
     with col02:
         st.subheader(f'Mapa de Frequência do nome {nome} por Estado')
-        with st.container(height=730, border=True):
-            mapa(df=df_freq_loc)
+        with st.container(height=900, border=True):
+            mapa(df=df_freq_loc)        
+         
         
-
-    # st.write(df_localidades)
-    # st.write(df_frequencia)
-    st.subheader(f'Frequência do nome {nome} por Estado')
-    st.bar_chart(df_freq_loc,
-                 x='Estado',
-                 y='Frequencia',
-                 color="#DA3E3E")
-    st.write(df_freq_loc)
-    # estados = gpd.read_file('brazil_geo.json')
-    # st.write(estados)
-    
-        
-
 if __name__=='__main__':
     main()
