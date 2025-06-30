@@ -128,7 +128,7 @@ def main():
                 st.warning(f'Nenhum dado encontrado para o nome {nome}')
                 st.stop()
             # print(dict_estados)
-            frequencia_estado = dict_frequencia[id_estado]            
+            # frequencia_estado = dict_frequencia[id_estado]           
             # print(f'--> {id_estado}-{nome_estado}: {frequencia_estado}')
 
         dict_decada = pegar_nome_por_decada(nome)
