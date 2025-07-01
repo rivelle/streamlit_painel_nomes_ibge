@@ -3,6 +3,8 @@ import pandas as pd
 import geopandas as gpd
 import plotly.express as px
 import plotly.graph_objects as go
+import folium
+from streamlit_folium import st_folium
 import requests
 import json
 from pprint import pprint
@@ -68,116 +70,134 @@ def pegar_nome_por_decada(nome):
     return dict_decadas
 
 
-def mapa(df):
-    # estados = json.load('brazil_geo.json')
-    estados = gpd.read_file('brazil_geo.json')
+def mapa_brasil(df, nome):
+    estados = gpd.read_file('br_limites_estados.geojson')
     estados = estados.rename(columns={
-        'id':'UF-id',
-        'name':'Estado'})
+        'CD_UF':'UF-id',
+        'NM_UF':'Estado'
+    })
+    m = folium.Map(
+        location=[-14.619526, -36.662294],
+        tiles='cartodbpositron',
+        zoom_start=4.5
+    )
+    folium.Choropleth(
+        geo_data=estados,
+        data=df,
+        columns=['Estado', 'Frequencia'],
+        key_on='feature.properties.Estado',
+        fill_color='OrRd',
+        fill_opacity=0.8,
+        legend_name=f'Frequência do nome {nome}',
+    ).add_to(m)    
 
-    fig = px.choropleth_map(df,
-                            geojson=estados,
-                            locations='UF-id',
-                            color='Frequencia',
-                            color_continuous_scale='Reds',
-                            map_style='carto-positron',
-                            zoom=3.5,
-                            center= {'lat':-14.619526, 'lon':-50.662294},
-                            opacity=0.5,
-                            )
-    fig.update_layout(height=800, margin={"r":0,"t":0,"l":0,"b":0})
-    return st.plotly_chart(fig, use_container_width=True)
+    st_map = st_folium(m, width=2000, height=970)
 
+    return st_map
+    
 
 def main():
 
-    st.set_page_config(layout='wide')
-    st.title('Web App Nomes')
-    # st.write('Dados do IBGE')
-    st.divider()
+    st.set_page_config(layout='wide')   
 
-    # with st.sidebar:
-    #     nome = st.text_input('Pesquise por um nome:').capitalize()
-    #     if not nome:
-    #         st.stop()
-    col_pesquisa, col_vazia_pesquisa, col_vazia = st.columns([0.2, 0.2, 0.7], gap='small', vertical_alignment='center')
-
-    with col_pesquisa:
-        st.subheader('Pesquise por um Nome*:')
-        st.markdown(''' *O resultado apresentado para frequência do nome pesquisado
-                    é em relação à proporção por 100.000 habitantes.
+    with st.sidebar:
+        st.title('Web App Nomes')
+        st.markdown('Os dados apresentados neste App foram coletados à partir da API Nomes forneceida pelo IBGE*.')
+        st.divider()
+        st.subheader('Faça sua pesquisa:')
+        nome = st.text_input('Digite o nome desejado:', placeholder='Nome').capitalize()
+        st.markdown('''**Notas:**  
+                    **a)** O resultado apresentado para frequência do nome pesquisado é em relação à proporção por 100.000 habitantes.  
+                    **b)** O Censo Demográfico 2010 não considerou nos questionários nomes compostos, apenas o primeiro nome e o último sobrenome. Por essa razão, esta API não retorna resultados ao consultar nomes compostos.  
+                    **c)** Quando a quantidade de ocorrências for suficientemente pequena a ponto de permitir a identificação delas, o IBGE não informa essa quantidade. No caso da API de Nomes, a quantidade mínima de ocorrências para que seja divulgado os resultados é de 10 por município, 15 por Unidade da Federação e 20 no Brasil.  
+                    -------------------------------  
+                    ***Mais informações:** <https://servicodados.ibge.gov.br/api/docs/nomes?versao=2>
                     ''')
-
-    with col_vazia_pesquisa:
-        nome = st.text_input('Pesquise um nome abaixo:', placeholder='Digite um nome aqui').capitalize()
         if not nome:
-            st.stop()        
+            st.stop()
+        
+    
 
-        dict_estados = pegar_ids_estados()
+    dict_estados = pegar_ids_estados()
+    if not dict_estados:
+        st.warning(f'Nenhum dado encontrado para o nome {nome}')
+        st.stop()
+    dict_frequencia = pegar_frequencia_nome_por_estado(nome)
+    if not dict_frequencia:
+        st.warning(f'Nenhum dado encontrado para o nome {nome}')
+        st.stop()
+    # pprint(dict_estados)
+    # print(f'Fequência do nome {nome} nos Estados (por 100.000 habitantes)')
+    for id_estado, nome_estado in dict_estados.items():
         if not dict_estados:
             st.warning(f'Nenhum dado encontrado para o nome {nome}')
             st.stop()
-
-        dict_frequencia = pegar_frequencia_nome_por_estado(nome)
-        if not dict_frequencia:
-            st.warning(f'Nenhum dado encontrado para o nome {nome}')
-            st.stop()
-        # pprint(dict_estados)
-        # print(f'Fequência do nome {nome} nos Estados (por 100.000 habitantes)')
-        for id_estado, nome_estado in dict_estados.items():
-            if not dict_estados:
-                st.warning(f'Nenhum dado encontrado para o nome {nome}')
-                st.stop()
-            # print(dict_estados)
-            # frequencia_estado = dict_frequencia[id_estado]           
+        # print(dict_estados)
+        # frequencia_estado = dict_frequencia[id_estado]         
             # print(f'--> {id_estado}-{nome_estado}: {frequencia_estado}')
 
-        dict_decada = pegar_nome_por_decada(nome)
-        if not dict_decada:
-            st.warning(f'Nenhum dado encontrado para o nome {nome}')
-            st.stop()
-        # pprint(dict_decada)
+    dict_decada = pegar_nome_por_decada(nome)
+    if not dict_decada:
+        st.warning(f'Nenhum dado encontrado para o nome {nome}')
+        st.stop()
+    # pprint(dict_decada)
 
-        df = pd.DataFrame.from_dict(dict_decada, orient='index')
+    df = pd.DataFrame.from_dict(dict_decada, orient='index')
 
-        df_localidades = pd.DataFrame.from_dict(dict_estados, orient='index')
-        df_localidades = df_localidades.reset_index()
-        df_localidades = df_localidades.rename(columns={0:'Estado', 'index':'UF-id'})
+    df_localidades = pd.DataFrame.from_dict(dict_estados, orient='index')
+    df_localidades = df_localidades.reset_index(drop=False)
+    df_localidades = df_localidades.rename(columns={0:'Estado', 'index':'UF-id'})
+    
+    df_frequencia = pd.DataFrame.from_dict(dict_frequencia, orient='index')
+    df_frequencia = df_frequencia.reset_index(drop=False)
+    df_frequencia = df_frequencia.rename(columns={0:'Frequencia', 'index':'UF-id'})
+    
+    df_freq_loc = df_localidades.merge(df_frequencia, left_on='UF-id', right_on='UF-id', how='left')
+    df_freq_loc_top10 = df_freq_loc.sort_values(by='Frequencia', ascending=False).head(10)
+    # df_freq_loc.to_csv('teste_df_fre_loc.csv')
 
-        df_frequencia = pd.DataFrame.from_dict(dict_frequencia, orient='index')
-        df_frequencia = df_frequencia.reset_index()
-        df_frequencia = df_frequencia.rename(columns={0:'Frequencia', 'index':'UF-id'})
 
-        df_freq_loc = df_localidades.merge(df_frequencia, left_on='UF-id', right_on='UF-id', how='left')
-        df_freq_loc_top10 = df_freq_loc.sort_values(by='Frequencia', ascending=False).head(10)
-        df_freq_loc.to_csv('teste_df_fre_loc.csv')
-
-
-    col01, col02 = st.columns([0.5, 0.7])
+    col01, col02 = st.columns([0.4, 0.8])
 
     with col01:
-        
-        st.subheader(f'Frequência do nome {nome} por década')
-        st.bar_chart(df, color="#DA3E3E")
+        st.subheader(f'Gráficos de Frequência e Rank por Estado para o nome {nome}')
+        tit_graph_freq = (f'Frequência do nome {nome} por Década')
+        df_decada = df
+        df_decada = df_decada.reset_index(drop=False)
+        df_decada = df_decada.rename(columns={
+            'index':'Decadas',
+            0:'Frequencia'
+        })
+        fig_freq_decada = go.Figure()
+        fig_freq_decada.add_trace(go.Bar(
+            x=df_decada['Decadas'],
+            y=df_decada['Frequencia'],
+            marker_color=  "#F87407",
+        ))
+        fig_freq_decada.update_layout(title = tit_graph_freq)
+        st.plotly_chart(fig_freq_decada)
+        # st.bar_chart(df, color="#DA773E")
 
-        st.subheader(f'Evolução no tempo dos registros do {nome} por década')
-        st.line_chart(df, color="#DA3E3E")
-
-        st.subheader(f'Top 10 Frequência do {nome} por Estado')
+        tit_graph_rank = (f'Top 10 Frequência do {nome} por Estado')
         fig_chart_bar = go.Figure()
         fig_chart_bar.add_trace(go.Bar(
             x = df_freq_loc_top10['Estado'],
             y = df_freq_loc_top10['Frequencia'],
-            marker_color = "#DA3E3E"
+            marker_color = "#F87407",
+            textangle=45,
             ))
-        fig_chart_bar.update_layout()
+        fig_chart_bar.update_layout(title = tit_graph_rank)
         st.plotly_chart(fig_chart_bar)
+        
 
-
+    
     with col02:
         st.subheader(f'Mapa de Frequência do nome {nome} por Estado')
-        with st.container(height=900, border=True):
-            mapa(df=df_freq_loc)        
+        mapa_brasil(df_freq_loc, nome)
+        # with st.container(height=1000, border=True):
+        #     mapa_brasil(df_freq_loc)
+
+        # st.write(df_decada)
          
         
 if __name__=='__main__':
