@@ -6,8 +6,6 @@ import plotly.graph_objects as go
 import folium
 from streamlit_folium import st_folium
 import requests
-import json
-from pprint import pprint
 
 
 def fazer_request(url, params=None):
@@ -49,7 +47,6 @@ def pegar_frequencia_nome_por_estado(nome):
     
     dict_frequencias = {}
     for dados in dados_frequencias:
-        # print(dados)
         id_estado = int(dados['localidade'])
         frequencia = dados['res'][0]['proporcao']
         dict_frequencias[id_estado] = frequencia
@@ -61,7 +58,7 @@ def pegar_nome_por_decada(nome):
     dados_decada = fazer_request(url=url)
     if not dados_decada:
         return {}
-    # pprint(dados_decada)
+    
     dict_decadas = {}
     for dados in dados_decada[0]['res']:
         decada = dados['periodo']
@@ -126,22 +123,17 @@ def main():
     if not dict_frequencia:
         st.warning(f'Nenhum dado encontrado para o nome {nome}')
         st.stop()
-    # pprint(dict_estados)
-    # print(f'Fequência do nome {nome} nos Estados (por 100.000 habitantes)')
+   
     for id_estado, nome_estado in dict_estados.items():
         if not dict_estados:
             st.warning(f'Nenhum dado encontrado para o nome {nome}')
             st.stop()
-        # print(dict_estados)
-        # frequencia_estado = dict_frequencia[id_estado]         
-            # print(f'--> {id_estado}-{nome_estado}: {frequencia_estado}')
-
+        
     dict_decada = pegar_nome_por_decada(nome)
     if not dict_decada:
         st.warning(f'Nenhum dado encontrado para o nome {nome}')
         st.stop()
-    # pprint(dict_decada)
-
+    
     df = pd.DataFrame.from_dict(dict_decada, orient='index')
 
     df_localidades = pd.DataFrame.from_dict(dict_estados, orient='index')
@@ -154,8 +146,7 @@ def main():
     
     df_freq_loc = df_localidades.merge(df_frequencia, left_on='UF-id', right_on='UF-id', how='left')
     df_freq_loc_top10 = df_freq_loc.sort_values(by='Frequencia', ascending=False).head(10)
-    # df_freq_loc.to_csv('teste_df_fre_loc.csv')
-
+    
 
     col01, col02 = st.columns([0.4, 0.8])
 
@@ -176,8 +167,7 @@ def main():
         ))
         fig_freq_decada.update_layout(title = tit_graph_freq)
         st.plotly_chart(fig_freq_decada)
-        # st.bar_chart(df, color="#DA773E")
-
+        
         tit_graph_rank = (f'Top 10 Frequência do {nome} por Estado')
         fig_chart_bar = go.Figure()
         fig_chart_bar.add_trace(go.Bar(
@@ -194,11 +184,7 @@ def main():
     with col02:
         st.subheader(f'Mapa de Frequência do nome {nome} por Estado')
         mapa_brasil(df_freq_loc, nome)
-        # with st.container(height=1000, border=True):
-        #     mapa_brasil(df_freq_loc)
-
-        # st.write(df_decada)
-         
+        
         
 if __name__=='__main__':
     main()
