@@ -3,95 +3,10 @@ import pandas as pd
 import geopandas as gpd
 import plotly.express as px
 import plotly.graph_objects as go
-import folium
-from streamlit_folium import st_folium
+from matplotlib import pyplot as plt
 import requests
+from utils import pegar_ids_estados, pegar_nome_por_decada, pegar_frequencia_nome_por_estado,figura_mapa_brasil
 
-
-def fazer_request(url, params=None):
-    resposta = requests.get(url, params=params)
-    try:
-        resposta.raise_for_status()
-    except requests.HTTPError as e:
-        print(f'Erro no request: {e}')
-        resultado = None
-    else:
-        resultado = resposta.json()
-    return resultado
-
-
-def pegar_ids_estados():
-    url = 'https://servicodados.ibge.gov.br/api/v1/localidades/estados'
-    params = {
-        'view':'nivelado',
-    }
-    dados_estados = fazer_request(url=url, params=params)
-    if not dados_estados:
-        return {}
-    dict_estado = {}
-    for dados in dados_estados:
-        id_estado = dados['UF-id']
-        nome_estado = dados['UF-nome']
-        dict_estado[id_estado] = nome_estado
-    return dict_estado
-
-
-def pegar_frequencia_nome_por_estado(nome):
-    url = f'https://servicodados.ibge.gov.br/api/v2/censos/nomes/{nome}'
-    params = {
-        'groupby':'UF',
-    }
-    dados_frequencias = fazer_request(url=url, params=params)
-    if not dados_frequencias:
-        return {}
-    
-    dict_frequencias = {}
-    for dados in dados_frequencias:
-        id_estado = int(dados['localidade'])
-        frequencia = dados['res'][0]['proporcao']
-        dict_frequencias[id_estado] = frequencia
-    return dict_frequencias
-
-
-def pegar_nome_por_decada(nome):
-    url = f'https://servicodados.ibge.gov.br/api/v2/censos/nomes/{nome}'
-    dados_decada = fazer_request(url=url)
-    if not dados_decada:
-        return {}
-    
-    dict_decadas = {}
-    for dados in dados_decada[0]['res']:
-        decada = dados['periodo']
-        quantidade = dados['frequencia']
-        dict_decadas[decada] = quantidade
-    return dict_decadas
-
-
-def mapa_brasil(df, nome):
-    estados = gpd.read_file('br_limites_estados.geojson')
-    estados = estados.rename(columns={
-        'CD_UF':'UF-id',
-        'NM_UF':'Estado'
-    })
-    m = folium.Map(
-        location=[-14.619526, -36.662294],
-        tiles='cartodbpositron',
-        zoom_start=4.5
-    )
-    folium.Choropleth(
-        geo_data=estados,
-        data=df,
-        columns=['Estado', 'Frequencia'],
-        key_on='feature.properties.Estado',
-        fill_color='OrRd',
-        fill_opacity=0.8,
-        legend_name=f'Frequência do nome {nome}',
-    ).add_to(m)    
-
-    st_map = st_folium(m, width=2000, height=970)
-
-    return st_map
-    
 
 def main():
 
@@ -113,8 +28,6 @@ def main():
         if not nome:
             st.stop()
         
-    
-
     dict_estados = pegar_ids_estados()
     if not dict_estados:
         st.warning(f'Nenhum dado encontrado para o nome {nome}')
@@ -182,8 +95,9 @@ def main():
 
     
     with col02:
-        st.subheader(f'Mapa de Frequência do nome {nome} por Estado')
-        mapa_brasil(df_freq_loc, nome)
+        # st.subheader(f'Mapa de Frequência do nome {nome} por Estado')
+        st.pyplot(figura_mapa_brasil(df_freq_loc, nome))
+        # mapa_brasil(df_freq_loc, nome)
         
         
 if __name__=='__main__':
