@@ -17,7 +17,7 @@ def main():
     with st.sidebar:
         
         st.image(image='logo.png', use_container_width=100)
-        st.title('Web App Nomes')
+        
         
         st.divider()
         st.subheader('Faça sua pesquisa:')
@@ -84,9 +84,10 @@ def main():
 
     
 # Carregando dados da API Nomes---------------------------------------------------------------
-
+    st.title('Web App Nomes')
+    
     col01, col02 = st.columns([0.6, 0.8])
-
+    
     with col01:
             
         st.subheader(f'Resultados da pesquisa para o nome {nome}')
