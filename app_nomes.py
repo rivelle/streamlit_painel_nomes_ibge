@@ -4,15 +4,19 @@ import geopandas as gpd
 import plotly.express as px
 import plotly.graph_objects as go
 from matplotlib import pyplot as plt
-import requests
-from utils import pegar_ids_estados, pegar_nome_por_decada, pegar_frequencia_nome_por_estado,figura_mapa_brasil
+import folium
+from streamlit_folium import st_folium
+
+from utils import pegar_ids_estados, pegar_nome_por_decada, pegar_frequencia_nome_por_estado, mapa_brasil
+
 
 
 def main():
-
-    st.set_page_config(layout='wide')   
-
+    st.set_page_config(layout='wide')
+    
     with st.sidebar:
+        
+        st.image(image='logo.png', use_container_width=100)
         st.title('Web App Nomes')
         st.markdown('Os dados apresentados neste App foram coletados à partir da API Nomes forneceida pelo IBGE*.')
         st.divider()
@@ -27,7 +31,9 @@ def main():
                     ''')
         if not nome:
             st.stop()
-        
+
+    
+    
     dict_estados = pegar_ids_estados()
     if not dict_estados:
         st.warning(f'Nenhum dado encontrado para o nome {nome}')
@@ -58,12 +64,14 @@ def main():
     df_frequencia = df_frequencia.rename(columns={0:'Frequencia', 'index':'UF-id'})
     
     df_freq_loc = df_localidades.merge(df_frequencia, left_on='UF-id', right_on='UF-id', how='left')
+    # df_freq_loc.to_csv('df.csv')
     df_freq_loc_top10 = df_freq_loc.sort_values(by='Frequencia', ascending=False).head(10)
     
 
-    col01, col02 = st.columns([0.4, 0.8])
+    col01, col02 = st.columns([0.6, 0.8])
 
     with col01:
+        
         st.subheader(f'Gráficos de Frequência e Rank por Estado para o nome {nome}')
         tit_graph_freq = (f'Frequência do nome {nome} por Década')
         df_decada = df
@@ -95,10 +103,13 @@ def main():
 
     
     with col02:
-        # st.subheader(f'Mapa de Frequência do nome {nome} por Estado')
-        st.pyplot(figura_mapa_brasil(df_freq_loc, nome))
-        # mapa_brasil(df_freq_loc, nome)
-        
-        
+
+        map_container = st.empty()    
+        with st.spinner('Gerando mapa...'):
+            mapa = mapa_brasil(df_freq_loc, nome)
+            map_container.empty()  # Limpa container antes de renderizar
+            st_folium(mapa, width=2000, height=970)
+
+    
 if __name__=='__main__':
     main()

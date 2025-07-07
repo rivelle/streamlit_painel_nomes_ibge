@@ -3,6 +3,9 @@ import geopandas as gpd
 import plotly.express as px
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
+import folium
+import streamlit as st
+from streamlit_folium import st_folium
 import requests
 
 
@@ -70,6 +73,7 @@ def pegar_nome_por_decada(nome):
 
 # df = pd.read_csv('df.csv')
 
+@st.cache_data
 def figura_mapa_brasil(df, nome):
     #Dados---------------------------------
     brasil = gpd.read_file('brasil.gpkg', layer='limites_estados')
@@ -78,12 +82,16 @@ def figura_mapa_brasil(df, nome):
         'NM_UF':'Estado'
     })
     brasil['UF-id'] = brasil['UF-id'].astype('Int64')
+    st.session_state['df_brasil'] = brasil
+    
+
     brasil_freq = brasil.join(df['Frequencia'], on='UF-id', how='left')
+    st.session_state['df_brasil_freq'] = brasil_freq
 
     #Plot------------------------------------
     fig, eixo = plt.subplots(figsize=(10,10))
-    brasil.plot(ax=eixo, color='lightgray', alpha=0.3, edgecolor='black', linewidth=0.3)
-    brasil_freq.plot(ax=eixo,
+    st.session_state['df_brasil'].plot(ax=eixo, color='lightgray', alpha=0.3, edgecolor='black', linewidth=0.3)
+    st.session_state['df_brasil_freq'].plot(ax=eixo,
                 column='Frequencia',
                 cmap='YlOrRd',
                 edgecolor='black',
@@ -92,32 +100,37 @@ def figura_mapa_brasil(df, nome):
                 )
 
 
-    fig.suptitle(f'Mapa de Frequência do nome {nome} por Estado', fontsize=12)
+    fig.suptitle(f'Mapa de Frequência do nome {nome} por Estado', fontsize=10)
     fig.tight_layout()
     return fig
+    
+@st.cache_data
+def load_geojson():
+    brasil = gpd.read_file('brasil.gpkg', layer='limites_estados')
+    brasil = brasil.rename(columns={
+        'CD_UF':'UF-id',
+        'NM_UF':'Estado'
+    })
+    brasil['geometry'] = brasil['geometry'].simplify(tolerance=0.01, preserve_topology=True)
+    return brasil
 
 
-# def mapa_brasil(df, nome):
-#     estados = gpd.read_file('br_limites_estados.geojson')
-#     estados = estados.rename(columns={
-#         'CD_UF':'UF-id',
-#         'NM_UF':'Estado'
-#     })
-#     m = folium.Map(
-#         location=[-14.619526, -36.662294],
-#         tiles='cartodbpositron',
-#         zoom_start=4.5
-#     )
-#     folium.Choropleth(
-#         geo_data=estados,
-#         data=df,
-#         columns=['Estado', 'Frequencia'],
-#         key_on='feature.properties.Estado',
-#         fill_color='OrRd',
-#         fill_opacity=0.8,
-#         legend_name=f'Frequência do nome {nome}',
-#     ).add_to(m)    
+def mapa_brasil(df, nome):
+    geojson = load_geojson()
+    m = folium.Map(
+        location=[-14.619526, -36.662294],
+        tiles='cartodbpositron',
+        zoom_start=4.5
+    )
+    folium.Choropleth(
+        geo_data=geojson,
+        data=df,
+        columns=['Estado', 'Frequencia'],
+        key_on='feature.properties.Estado',
+        fill_color='OrRd',
+        fill_opacity=0.8,
+        legend_name=f'Frequência do nome {nome}',
+        smooth_factor=0.1
+    ).add_to(m)
 
-#     st_map = st_folium(m, width=2000, height=970)
-
-#     return st_map
+    return m
