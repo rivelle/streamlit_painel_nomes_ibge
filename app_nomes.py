@@ -122,11 +122,12 @@ def main():
         
     with col02:
 
-        map_container = st.empty()    
+        map_container = st.empty()
+            
         with st.spinner('Gerando mapa...'):
             mapa = mapa_brasil(df_freq_loc, nome)
             map_container.empty()  # Limpa container antes de renderizar
-            st_folium(mapa, width=2000, height=970)
+            st_folium(mapa, use_container_width=True, height=920)
 
     
 if __name__=='__main__':

@@ -118,9 +118,9 @@ def load_geojson():
 def mapa_brasil(df, nome):
     geojson = load_geojson()
     m = folium.Map(
-        location=[-14.619526, -36.662294],
+        location=[-14.619526, -53.662294],
         tiles='cartodbpositron',
-        zoom_start=4.5
+        zoom_start=4.7
     )
     folium.Choropleth(
         geo_data=geojson,
